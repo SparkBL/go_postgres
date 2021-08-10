@@ -7,12 +7,12 @@ import (
 )
 
 type Config struct {
-	MembersPath        string `json:"members_path"`
-	UsersPath          string `json:"users_path"`
-	InsertPath         string `json:"insert_path"`
-	DBConnectionString string `json:"db_conn_str"`
-	ChannelBuffer      int    `json:"channel_buffer"`
-	Outputdir          string `json:"output_dir"`
+	MembersPath        string  `json:"members_path"`
+	UsersPath          string  `json:"users_path"`
+	DBConnectionString string  `json:"db_conn_str"`
+	ChannelBuffer      int     `json:"channel_buffer"`
+	Outputdir          string  `json:"output_dir"`
+	Precision          float64 `json:"precision"`
 }
 
 func LoadConfig() (Config, error) {

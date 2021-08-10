@@ -21,7 +21,7 @@ type Group struct {
 	Members  []int
 }
 
-func ThreadWork(region_id int, user_array []int, c chan Group, outputDir string) {
+func ThreadWork(region_id int, user_array []int, c chan Group, outputDir string, precision float64) {
 	csvFile, err := os.Create(outputDir + "/" + strconv.Itoa(region_id) + ".csv")
 	if err != nil {
 		log.WithError(err).Fatalf("failed creating file: %s", err)
@@ -36,7 +36,7 @@ func ThreadWork(region_id int, user_array []int, c chan Group, outputDir string)
 		intersection := intersect.Hash(user_array, group.Members).([]interface{})
 		//elapsed = append(elapsed, time.Since(start).Milliseconds())
 		group.Fraction = float64(len(intersection)) / float64(len(group.Members))
-		if group.Fraction > 0.000000 {
+		if group.Fraction > precision {
 			group.RegionId = region_id
 			csvwriter.Write([]string{strconv.Itoa(group.GroupId), strconv.Itoa(group.RegionId), strconv.FormatFloat(group.Fraction, 'f', 8, 64)})
 		}
@@ -95,7 +95,7 @@ func main() {
 	var chans []chan Group
 	for region_id, user_array := range *users {
 		chans = append(chans, make(chan Group, conf.ChannelBuffer))
-		go ThreadWork(region_id, user_array, chans[len(chans)-1], conf.Outputdir)
+		go ThreadWork(region_id, user_array, chans[len(chans)-1], conf.Outputdir, conf.Precision)
 	}
 	for rows.Next() {
 		var group_id int
