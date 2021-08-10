@@ -2,7 +2,6 @@ package db
 
 import (
 	"context"
-	"go_postgres/config"
 
 	"github.com/jackc/pgx/v4"
 	log "github.com/sirupsen/logrus"
@@ -12,8 +11,8 @@ type dbClient struct {
 	connConfig pgx.ConnConfig
 }
 
-func NewDbClient(DBconf config.Config) dbClient {
-	conf, err := pgx.ParseConfig(DBconf.DBConnectionString)
+func NewDbClient(ConnectionString string) dbClient {
+	conf, err := pgx.ParseConfig(ConnectionString)
 	if err != nil {
 		log.WithError(err).Fatal("Failed to connect PostgreSQL database")
 	}
@@ -22,7 +21,7 @@ func NewDbClient(DBconf config.Config) dbClient {
 		"standard_conforming_strings": "on",
 	}
 
-	pingConn, err := pgx.Connect(context.Background(), DBconf.DBConnectionString)
+	pingConn, err := pgx.Connect(context.Background(), ConnectionString)
 	if err != nil {
 		log.WithError(err).Fatal("Failed to connect PostgreSQL database")
 	}

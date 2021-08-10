@@ -75,7 +75,7 @@ func main() {
 		os.Mkdir(conf.Outputdir, 0755)
 	}
 
-	DBClient := db.NewDbClient(conf)
+	DBClient := db.NewDbClient(conf.DBConnectionString)
 	users, err := DBClient.StoreUserIds(conf.UsersPath)
 	if err != nil {
 		log.WithTime(time.Now()).WithError(err).Fatalln("Couldn't load users. Aborting..")
