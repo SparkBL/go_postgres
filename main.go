@@ -67,6 +67,11 @@ func main() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
 
+	log.SetFormatter(&log.TextFormatter{
+		DisableColors: false,
+		FullTimestamp: true,
+	})
+
 	conf, err := config.LoadConfig()
 	if err != nil {
 		log.Panic(err)
