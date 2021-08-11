@@ -74,7 +74,6 @@ func main() {
 	if ok, _ := exists(conf.Outputdir); !ok {
 		os.Mkdir(conf.Outputdir, 0755)
 	}
-
 	DBClient := db.NewDbClient(conf.DBConnectionString)
 	users, err := DBClient.StoreUserIds(conf.UsersPath)
 	if err != nil {
@@ -102,6 +101,9 @@ func main() {
 		var members []int
 		rows.Scan(&group_id, &members)
 		for i := 0; i < len(chans); i++ {
+			for len(chans[i]) == cap(chans[i]) {
+				log.WithTime(time.Now()).Warningln("Channel", chans[i], "is full, waiting...")
+			}
 			chans[i] <- Group{GroupId: group_id, Members: members}
 		}
 	}
