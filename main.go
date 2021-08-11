@@ -28,17 +28,16 @@ func ThreadWork(region_id int, user_array []int, c chan Group, outputDir string,
 	}
 	csvwriter := csv.NewWriter(csvFile)
 	csvwriter.Comma = ';'
-	csvwriter.Write([]string{"group_id", "region_id", "fraction"})
+	csvwriter.Write([]string{"group_id", "region_id", "fraction", "region_member_count"})
 	log.WithTime(time.Now()).Println("Starting region ", region_id)
 	//var elapsed []int64
 	for group := range c {
 		//start := time.Now()
 		intersection := intersect.Hash(user_array, group.Members).([]interface{})
-		//elapsed = append(elapsed, time.Since(start).Milliseconds())
 		group.Fraction = float64(len(intersection)) / float64(len(group.Members))
 		if group.Fraction > precision {
 			group.RegionId = region_id
-			csvwriter.Write([]string{strconv.Itoa(group.GroupId), strconv.Itoa(group.RegionId), strconv.FormatFloat(group.Fraction, 'f', 8, 64)})
+			csvwriter.Write([]string{strconv.Itoa(group.GroupId), strconv.Itoa(group.RegionId), strconv.FormatFloat(group.Fraction, 'f', 8, 64), strconv.Itoa(len(intersection))})
 		}
 
 	}
