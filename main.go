@@ -107,6 +107,7 @@ func main() {
 		for i := 0; i < len(chans); i++ {
 			for len(chans[i]) == cap(chans[i]) {
 				log.WithTime(time.Now()).Warningln("Channel", chans[i], "is full, waiting...")
+				time.Sleep(time.Second)
 			}
 			chans[i] <- Group{GroupId: group_id, Members: members}
 		}
