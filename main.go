@@ -24,9 +24,9 @@ type Group struct {
 	Members       []int
 }
 
-func Intersect(user_array []int, members []int) (float64, int) {
-	intersection := intersect.Hash(user_array, members).([]interface{})
-	return float64(len(intersection)) / float64(len(members)), len(intersection)
+func Intersect(user_array *[]int, members *[]int) (float64, int) {
+	intersection := intersect.Hash(*user_array, *members).([]interface{})
+	return float64(len(intersection)) / float64(len(*members)), len(intersection)
 }
 
 func ThreadWork(region_id int, user_array []int, conf config.Config) {
@@ -50,13 +50,13 @@ func ThreadWork(region_id int, user_array []int, conf config.Config) {
 	csvwriter.Comma = ';'
 	csvwriter.Write([]string{"group_id", "region_id", "fraction", "region_member_count"})
 	log.WithTime(time.Now()).Println("Starting region ", region_id)
-	output := make(chan []string, 10000)
+	output := make(chan []string, conf.ChannelBuffer)
 	input := make(chan Group, conf.ChannelBuffer)
 
 	for i := 0; i < 3; i++ {
 		go func() {
 			for arr := range input {
-				arr.Fraction, arr.MembersRegion = Intersect(user_array, arr.Members)
+				arr.Fraction, arr.MembersRegion = Intersect(&user_array, &arr.Members)
 				if arr.Fraction > conf.Precision {
 					output <- []string{strconv.Itoa(arr.GroupId), strconv.Itoa(arr.RegionId), strconv.FormatFloat(arr.Fraction, 'f', 8, 64), strconv.Itoa(arr.MembersRegion)}
 				}
@@ -70,6 +70,10 @@ func ThreadWork(region_id int, user_array []int, conf config.Config) {
 	}()
 
 	for rows.Next() {
+		for len(input) == cap(input) {
+			log.WithTime(time.Now()).Warnln("Input is full, waiting...", region_id)
+			time.Sleep(time.Second)
+		}
 		var group_id int
 		var members []int
 		rows.Scan(&group_id, &members)
