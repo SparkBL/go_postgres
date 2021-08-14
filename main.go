@@ -16,6 +16,19 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+type Group struct {
+	GroupId       int
+	RegionId      int
+	Fraction      float64
+	MembersRegion int
+	Members       []int
+}
+
+func Intersect(user_array []int, members []int) (float64, int) {
+	intersection := intersect.Hash(user_array, members).([]interface{})
+	return float64(len(intersection)) / float64(len(members)), len(intersection)
+}
+
 func ThreadWork(region_id int, user_array []int, conf config.Config) {
 	DBClient := db.NewDbClient(conf.DBConnectionString)
 	conn, err := DBClient.NewConnection()
@@ -37,17 +50,34 @@ func ThreadWork(region_id int, user_array []int, conf config.Config) {
 	csvwriter.Comma = ';'
 	csvwriter.Write([]string{"group_id", "region_id", "fraction", "region_member_count"})
 	log.WithTime(time.Now()).Println("Starting region ", region_id)
+	output := make(chan []string, 10000)
+	input := make(chan Group, conf.ChannelBuffer)
+
+	for i := 0; i < 3; i++ {
+		go func() {
+			for arr := range input {
+				arr.Fraction, arr.MembersRegion = Intersect(user_array, arr.Members)
+				if arr.Fraction > conf.Precision {
+					output <- []string{strconv.Itoa(arr.GroupId), strconv.Itoa(arr.RegionId), strconv.FormatFloat(arr.Fraction, 'f', 8, 64), strconv.Itoa(arr.MembersRegion)}
+				}
+			}
+		}()
+	}
+	go func() {
+		for str := range output {
+			csvwriter.Write(str)
+		}
+	}()
+
 	for rows.Next() {
 		var group_id int
 		var members []int
 		rows.Scan(&group_id, &members)
-		intersection := intersect.Hash(user_array, members).([]interface{})
-		fraction := float64(len(intersection)) / float64(len(members))
-		if fraction > conf.Precision {
-			csvwriter.Write([]string{strconv.Itoa(group_id), strconv.Itoa(region_id), strconv.FormatFloat(fraction, 'f', 8, 64), strconv.Itoa(len(intersection))})
-		}
+		input <- Group{GroupId: group_id, Members: members, RegionId: region_id}
 	}
 	rows.Close()
+	close(output)
+	close(input)
 	csvwriter.Flush()
 	csvFile.Close()
 	log.WithTime(time.Now()).Println("Completed region", region_id) //, "in average", average, "millisecs")
