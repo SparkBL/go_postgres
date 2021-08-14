@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"go_postgres/config"
 	"go_postgres/db"
+	"go_postgres/utils"
 	"os"
 	"os/signal"
 	"strconv"
@@ -50,32 +51,19 @@ func ThreadWork(region_id int, user_array []int, c chan Group, outputDir string,
 	average := total / int64(len(elapsed))*/
 	log.WithTime(time.Now()).Println("Completed region", region_id) //, "in average", average, "millisecs")
 }
-func exists(path string) (bool, error) {
-	_, err := os.Stat(path)
-	if err == nil {
-		return true, nil
-	}
-	if os.IsNotExist(err) {
-		return false, nil
-	}
-	return false, err
-}
 
 func main() {
+	utils.InitLogger()
+
 	log.Println("PID:", os.Getpid())
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
-
-	log.SetFormatter(&log.TextFormatter{
-		DisableColors: false,
-		FullTimestamp: true,
-	})
 
 	conf, err := config.LoadConfig()
 	if err != nil {
 		log.Panic(err)
 	}
-	if ok, _ := exists(conf.Outputdir); !ok {
+	if ok, _ := utils.Exists(conf.Outputdir); !ok {
 		os.Mkdir(conf.Outputdir, 0755)
 	}
 	DBClient := db.NewDbClient(conf.DBConnectionString)
@@ -84,6 +72,7 @@ func main() {
 		log.WithTime(time.Now()).WithError(err).Fatalln("Couldn't load users. Aborting..")
 	}
 
+	///BEGIN Read group_members
 	conn, err := DBClient.NewConnection()
 	if err != nil {
 		log.WithTime(time.Now()).WithError(err).Fatalln("Failed to connect to PostgreSQL server")
@@ -94,7 +83,7 @@ func main() {
 	if err != nil {
 		log.WithTime(time.Now()).WithError(err).Fatalln("Failed to query members.")
 	}
-
+	///END Read group_members
 	var chans []chan Group
 	for region_id, user_array := range *users {
 		chans = append(chans, make(chan Group, conf.ChannelBuffer))
