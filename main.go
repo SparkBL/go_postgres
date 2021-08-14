@@ -54,7 +54,6 @@ func ThreadWork(region_id int, user_array []int, c chan Group, outputDir string,
 
 func main() {
 	utils.InitLogger()
-
 	log.Println("PID:", os.Getpid())
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
