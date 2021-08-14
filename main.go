@@ -23,8 +23,20 @@ type Group struct {
 	Members  []int
 }
 
-func ThreadWork(region_id int, user_array []int, c chan Group, outputDir string, precision float64) {
-	csvFile, err := os.Create(outputDir + "/" + strconv.Itoa(region_id) + ".csv")
+func ThreadWork(region_id int, user_array []int, conf config.Config) {
+	DBClient := db.NewDbClient(conf.DBConnectionString)
+	conn, err := DBClient.NewConnection()
+	if err != nil {
+		log.WithTime(time.Now()).WithError(err).Fatalln("Failed to connect to PostgreSQL server")
+
+	}
+	defer conn.Close(context.Background())
+	rows, err := conn.Query(context.Background(), "select group_id,items from "+conf.MembersPath)
+	if err != nil {
+		log.WithTime(time.Now()).WithError(err).Fatalln("Failed to query members.")
+	}
+
+	csvFile, err := os.Create(conf.Outputdir + "/" + strconv.Itoa(region_id) + ".csv")
 	if err != nil {
 		log.WithError(err).Fatalf("failed creating file: %s", err)
 	}
@@ -32,24 +44,19 @@ func ThreadWork(region_id int, user_array []int, c chan Group, outputDir string,
 	csvwriter.Comma = ';'
 	csvwriter.Write([]string{"group_id", "region_id", "fraction", "region_member_count"})
 	log.WithTime(time.Now()).Println("Starting region ", region_id)
-	//var elapsed []int64
-	for group := range c {
-		//start := time.Now()
-		intersection := intersect.Hash(user_array, group.Members).([]interface{})
-		group.Fraction = float64(len(intersection)) / float64(len(group.Members))
-		if group.Fraction > precision {
-			group.RegionId = region_id
-			csvwriter.Write([]string{strconv.Itoa(group.GroupId), strconv.Itoa(group.RegionId), strconv.FormatFloat(group.Fraction, 'f', 8, 64), strconv.Itoa(len(intersection))})
+	for rows.Next() {
+		var group_id int
+		var members []int
+		rows.Scan(&group_id, &members)
+		intersection := intersect.Hash(user_array, members).([]interface{})
+		fraction := float64(len(intersection)) / float64(len(members))
+		if fraction > conf.Precision {
+			csvwriter.Write([]string{strconv.Itoa(group_id), strconv.Itoa(region_id), strconv.FormatFloat(fraction, 'f', 8, 64), strconv.Itoa(len(intersection))})
 		}
-
 	}
+	rows.Close()
 	csvwriter.Flush()
 	csvFile.Close()
-	/*total := int64(0)
-	for _, number := range elapsed {
-		total = total + number
-	}
-	average := total / int64(len(elapsed))*/
 	log.WithTime(time.Now()).Println("Completed region", region_id) //, "in average", average, "millisecs")
 }
 
@@ -82,39 +89,9 @@ func main() {
 	if err != nil {
 		log.WithTime(time.Now()).WithError(err).Fatalln("Couldn't load users. Aborting..")
 	}
-
-	///BEGIN Read group_members
-	conn, err := DBClient.NewConnection()
-	if err != nil {
-		log.WithTime(time.Now()).WithError(err).Fatalln("Failed to connect to PostgreSQL server")
-
-	}
-	defer conn.Close(context.Background())
-	rows, err := conn.Query(context.Background(), "select group_id,items from "+conf.MembersPath)
-	if err != nil {
-		log.WithTime(time.Now()).WithError(err).Fatalln("Failed to query members.")
-	}
-	///END Read group_members
-	var chans []chan Group
 	for region_id, user_array := range *users {
-		chans = append(chans, make(chan Group, conf.ChannelBuffer))
-		go ThreadWork(region_id, user_array, chans[len(chans)-1], conf.Outputdir, conf.Precision)
+		go ThreadWork(region_id, user_array, conf)
 	}
-	for rows.Next() {
-		var group_id int
-		var members []int
-		rows.Scan(&group_id, &members)
-		for i := 0; i < len(chans); i++ {
-			for len(chans[i]) == cap(chans[i]) {
-				log.WithTime(time.Now()).Warningln("Channel", chans[i], "is full, waiting...")
-				time.Sleep(time.Second)
-			}
-			chans[i] <- Group{GroupId: group_id, Members: members}
-		}
-	}
-	rows.Close()
-	for _, c := range chans {
-		close(c)
-	}
+
 	<-stop
 }
