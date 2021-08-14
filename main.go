@@ -16,13 +16,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type Group struct {
-	GroupId  int
-	RegionId int
-	Fraction float64
-	Members  []int
-}
-
 func ThreadWork(region_id int, user_array []int, conf config.Config) {
 	DBClient := db.NewDbClient(conf.DBConnectionString)
 	conn, err := DBClient.NewConnection()
