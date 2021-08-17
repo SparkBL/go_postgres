@@ -37,6 +37,8 @@ func ThreadWork(region_id int, user_array []int, conf config.Config) {
 	csvwriter.Comma = ';'
 	csvwriter.Write([]string{"group_id", "region_id", "fraction", "region_member_count"})
 	log.WithTime(time.Now()).Println("Starting region ", region_id)
+	i, j := 0, 0
+
 	for rows.Next() {
 		var group_id int
 		var members []int
@@ -45,12 +47,14 @@ func ThreadWork(region_id int, user_array []int, conf config.Config) {
 		fraction := float64(len(intersection)) / float64(len(members))
 		if fraction > conf.Precision {
 			csvwriter.Write([]string{strconv.Itoa(group_id), strconv.Itoa(region_id), strconv.FormatFloat(fraction, 'f', 8, 64), strconv.Itoa(len(intersection))})
+			j++
 		}
+		i++
 	}
 	rows.Close()
 	csvwriter.Flush()
 	csvFile.Close()
-	log.WithTime(time.Now()).Println("Completed region", region_id) //, "in average", average, "millisecs")
+	log.WithTime(time.Now()).Println("Completed region", region_id, "Rows processed:", i, "Rows written:", j) //, "in average", average, "millisecs")
 }
 
 func main() {
